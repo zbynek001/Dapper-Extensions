@@ -105,6 +105,7 @@
     <Compile Include="Sql\SqlGeneratorFixture.cs" />
     <Compile Include="Helpers\TestHelpers.cs" />
     <Compile Include="Sql\SqlServerDialectFixture.cs" />
+    <Compile Include="Validators\MaxLengthValidatorFixture.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

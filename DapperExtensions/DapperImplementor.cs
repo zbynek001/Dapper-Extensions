@@ -7,6 +7,7 @@ using System.Text;
 using Dapper;
 using DapperExtensions.Mapper;
 using DapperExtensions.Sql;
+using DapperExtensions.Validators;
 
 namespace DapperExtensions
 {
@@ -28,9 +29,12 @@ namespace DapperExtensions
 
     internal class DapperImplementor : IDapperImplementor
     {
+        private readonly MaxLengthValidator _maxLengthValidator;
+
         public DapperImplementor(ISqlGenerator sqlGenerator)
         {
             SqlGenerator = sqlGenerator;
+            _maxLengthValidator = new MaxLengthValidator();
         }
 
         public ISqlGenerator SqlGenerator { get; private set; }
@@ -50,6 +54,8 @@ namespace DapperExtensions
 
             foreach (var e in entities)
             {
+                _maxLengthValidator.Validate(e);
+
                 foreach (var column in properties)
                 {
                     if (column.KeyType == KeyType.Guid)
@@ -67,6 +73,8 @@ namespace DapperExtensions
 
         public dynamic Insert<T>(IDbConnection connection, T entity, IDbTransaction transaction, int? commandTimeout) where T : class
         {
+            _maxLengthValidator.Validate(entity);
+
             IClassMapper classMap = SqlGenerator.Configuration.GetMap<T>();
             List<IPropertyMap> nonIdentityKeyProperties = classMap.Properties.Where(p => p.KeyType == KeyType.Guid || p.KeyType == KeyType.Assigned).ToList();
             var identityColumn = classMap.Properties.SingleOrDefault(p => p.KeyType == KeyType.Identity);
@@ -121,6 +129,8 @@ namespace DapperExtensions
 
         public bool Update<T>(IDbConnection connection, T entity, IDbTransaction transaction, int? commandTimeout) where T : class
         {
+            _maxLengthValidator.Validate(entity);
+
             IClassMapper classMap = SqlGenerator.Configuration.GetMap<T>();
             IPredicate predicate = GetKeyPredicate<T>(classMap, entity);
             Dictionary<string, object> parameters = new Dictionary<string, object>();
