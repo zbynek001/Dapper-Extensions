@@ -14,7 +14,11 @@ namespace DapperExtensions.Mapper
         string ColumnName { get; }
         bool Ignored { get; }
         bool IsReadOnly { get; }
+        bool IsInsertOnly { get; }
         KeyType KeyType { get; }
+        KeyType GetKeyType(string name);
+        bool IsAnyKeyType(KeyType keyType);
+        bool IsKeyType(KeyType keyType);
         PropertyInfo PropertyInfo { get; }
     }
 
@@ -47,6 +51,33 @@ namespace DapperExtensions.Mapper
         /// </summary>
         public KeyType KeyType { get; private set; }
 
+        private Dictionary<string, KeyType> keyTypes = new Dictionary<string, KeyType>();
+
+        public KeyType GetKeyType(string name)
+        {
+            if (name == null)
+                return KeyType;
+            KeyType r;
+            if (keyTypes.TryGetValue(name, out r))
+                return r;
+            return Mapper.KeyType.NotAKey;
+        }
+
+        public bool IsAnyKeyType(KeyType keyType)
+        {
+            return KeyType == keyType || keyTypes.Values.Any(i => i == keyType);
+        }
+
+        public bool IsKeyType(KeyType keyType)
+        {
+            if (keyType == Mapper.KeyType.NotAKey)
+                return KeyType == keyType && keyTypes.Values.All(i => i == keyType);
+            if(KeyType != Mapper.KeyType.NotAKey)
+                return KeyType == keyType && keyTypes.Values.All(i => i == keyType || i == Mapper.KeyType.NotAKey);
+            else
+                return keyTypes.Count > 0 && keyTypes.Values.All(i => i == keyType || i == Mapper.KeyType.NotAKey);
+        }
+
         /// <summary>
         /// Gets the ignore status of the current property. If ignored, the current property will not be included in queries.
         /// </summary>
@@ -56,6 +87,8 @@ namespace DapperExtensions.Mapper
         /// Gets the read-only status of the current property. If read-only, the current property will not be included in INSERT and UPDATE queries.
         /// </summary>
         public bool IsReadOnly { get; private set; }
+
+        public bool IsInsertOnly { get; private set; }
 
         /// <summary>
         /// Gets the property info for the current property.
@@ -78,17 +111,30 @@ namespace DapperExtensions.Mapper
         /// <param name="columnName">The column name as it exists in the database.</param>
         public PropertyMap Key(KeyType keyType)
         {
-            if (Ignored)
-            {
+            if (Ignored) {
                 throw new ArgumentException(string.Format("'{0}' is ignored and cannot be made a key field. ", Name));
             }
 
-            if (IsReadOnly)
-            {
+            if (IsReadOnly) {
                 throw new ArgumentException(string.Format("'{0}' is readonly and cannot be made a key field. ", Name));
             }
 
             KeyType = keyType;
+            return this;
+        }
+
+        public PropertyMap Key(string name, KeyType keyType)
+        {
+            if (Ignored) {
+                throw new ArgumentException(string.Format("'{0}' is ignored and cannot be made a key field. ", Name));
+            }
+
+            //if (IsReadOnly) {
+            //    throw new ArgumentException(string.Format("'{0}' is readonly and cannot be made a key field. ", Name));
+            //}
+
+            keyTypes[name] = keyType;
+            //UpdateKeyType = keyType;
             return this;
         }
 
@@ -97,8 +143,7 @@ namespace DapperExtensions.Mapper
         /// </summary>
         public PropertyMap Ignore()
         {
-            if (KeyType != KeyType.NotAKey)
-            {
+            if (KeyType != KeyType.NotAKey) {
                 throw new ArgumentException(string.Format("'{0}' is a key field and cannot be ignored.", Name));
             }
 
@@ -111,12 +156,17 @@ namespace DapperExtensions.Mapper
         /// </summary>
         public PropertyMap ReadOnly()
         {
-            if (KeyType != KeyType.NotAKey)
-            {
+            if (KeyType != KeyType.NotAKey) {
                 throw new ArgumentException(string.Format("'{0}' is a key field and cannot be marked readonly.", Name));
             }
 
             IsReadOnly = true;
+            return this;
+        }
+
+        public PropertyMap InsertOnly()
+        {
+            IsInsertOnly = true;
             return this;
         }
     }

@@ -100,12 +100,26 @@ namespace DapperExtensions.Test.IntegrationTests
                 public IList<IPropertyMap> Properties { get; private set; }
                 public Type EntityType { get; private set; }
 
+                public bool IsPartialUpdateDisabled{ get; private set; }
+                public string DefaultUpdateKeyName{ get; private set; }
+                public string DefaultDeleteKeyName{ get; private set; }
+
                 public PropertyMap Map(Expression<Func<EntityWithInterfaceMapper, object>> expression)
                 {
                     throw new NotImplementedException();
                 }
 
                 public PropertyMap Map(PropertyInfo propertyInfo)
+                {
+                    throw new NotImplementedException();
+                }
+
+                public bool OnInsert(object entity)
+                {
+                    throw new NotImplementedException();
+                }
+
+                public bool OnUpdate(object entity)
                 {
                     throw new NotImplementedException();
                 }

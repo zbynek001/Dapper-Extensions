@@ -10,10 +10,11 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>DapperExtensions</RootNamespace>
     <AssemblyName>DapperExtensions</AssemblyName>
-    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\basis\src\</SolutionDir>
     <RestorePackages>true</RestorePackages>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -23,6 +24,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -31,11 +33,12 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Dapper, Version=1.12.1.1, Culture=neutral, processorArchitecture=MSIL">
+    <Reference Include="Dapper, Version=1.30.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\packages\Dapper.1.13\lib\net40\Dapper.dll</HintPath>
+      <HintPath>..\packages\Dapper.1.30\lib\net45\Dapper.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -47,7 +50,11 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ChangeTracking.cs" />
+    <Compile Include="ChangeTrackingCollection.cs" />
+    <Compile Include="DapperExtensions.Async.cs" />
     <Compile Include="DapperExtensionsConfiguration.cs" />
+    <Compile Include="DapperImplementor.Async.cs" />
     <Compile Include="DapperImplementor.cs" />
     <Compile Include="Database.cs" />
     <Compile Include="GetMultiplePredicate.cs" />
@@ -60,6 +67,7 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Mapper\PropertyMap.cs" />
     <Compile Include="ReflectionHelper.cs" />
+    <Compile Include="Snapshotter.cs" />
     <Compile Include="Sql\PostgreSqlDialect.cs" />
     <Compile Include="Sql\SqlCeDialect.cs" />
     <Compile Include="Sql\SqlDialectBase.cs" />

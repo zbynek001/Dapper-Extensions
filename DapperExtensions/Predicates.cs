@@ -147,7 +147,7 @@ namespace DapperExtensions
                 throw new NullReferenceException(string.Format("{0} was not found for {1}", propertyName, entityType));
             }
 
-            return sqlGenerator.GetColumnName(map, propertyMap, false);
+            return sqlGenerator.GetColumnName(map, propertyMap, false/*, false*/);
         }
     }
 

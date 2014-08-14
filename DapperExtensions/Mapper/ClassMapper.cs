@@ -14,10 +14,18 @@ namespace DapperExtensions.Mapper
         string TableName { get; }
         IList<IPropertyMap> Properties { get; }
         Type EntityType { get; }
+        bool IsPartialUpdateDisabled { get; }
+        string DefaultUpdateKeyName { get; }
+        string DefaultDeleteKeyName { get; }
+
+        bool OnInsert(object entity);
+        bool OnUpdate(object entity);
     }
 
     public interface IClassMapper<T> : IClassMapper where T : class
     {
+        //void OnInsert(T entity);
+        //void OnUpdate(T entity);
     }
 
     /// <summary>
@@ -45,6 +53,24 @@ namespace DapperExtensions.Mapper
             get { return typeof(T); }
         }
 
+        public bool IsPartialUpdateDisabled { get; protected set; }
+
+        public string DefaultUpdateKeyName { get; protected set; }
+        public string DefaultDeleteKeyName { get; protected set; }
+
+        bool IClassMapper.OnInsert(object entity)
+        {
+            return OnInsert(entity as T);
+        }
+
+        bool IClassMapper.OnUpdate(object entity)
+        {
+            return OnUpdate(entity as T);
+        }
+
+        public virtual bool OnInsert(T entity) { return false; }
+        public virtual bool OnUpdate(T entity) { return false; }
+ 
         public ClassMapper()
         {
             PropertyTypeKeyTypeMapping = new Dictionary<Type, KeyType>
@@ -77,6 +103,21 @@ namespace DapperExtensions.Mapper
             TableName = tableName;
         }
 
+        public virtual void PartialUpdateDisabled()
+        {
+            IsPartialUpdateDisabled = true;
+        }
+
+        public virtual void DefaultUpdateKey(string keyName)
+        {
+            DefaultUpdateKeyName = keyName;
+        }
+
+        public virtual void DefaultDeleteKey(string keyName)
+        {
+            DefaultDeleteKeyName = keyName;
+        }
+
         protected virtual void AutoMap()
         {
             AutoMap(null);
@@ -85,7 +126,7 @@ namespace DapperExtensions.Mapper
         protected virtual void AutoMap(Func<Type, PropertyInfo, bool> canMap)
         {
             Type type = typeof(T);
-            bool hasDefinedKey = Properties.Any(p => p.KeyType != KeyType.NotAKey);
+            bool hasDefinedKey = Properties.Any(p => !p.IsKeyType(KeyType.NotAKey));
             PropertyMap keyMap = null;
             foreach (var propertyInfo in type.GetProperties())
             {
