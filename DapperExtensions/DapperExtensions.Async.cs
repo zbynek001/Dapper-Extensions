@@ -16,9 +16,9 @@ namespace DapperExtensions
         /// <summary>
         /// Executes a query for the specified id, returning the data typed as per T
         /// </summary>
-        public static Task<T> GetAsync<T>(this IDbConnection connection, dynamic id, IDbTransaction transaction = null, int? commandTimeout = null, string keyName = null, string hints = null) where T : class
+        public static Task<T> GetAsync<T>(this IDbConnection connection, object predicate, IDbTransaction transaction = null, int? commandTimeout = null, string keyName = null, string hints = null) where T : class
         {
-            return Instance.GetAsync<T>(connection, id, transaction, commandTimeout, keyName, hints);
+            return Instance.GetAsync<T>(connection, predicate, transaction, commandTimeout, keyName, hints);
         }
 
         /// <summary>
@@ -75,9 +75,9 @@ namespace DapperExtensions
         /// <summary>
         /// Executes a select query using the specified predicate, returning an IEnumerable data typed as per T.
         /// </summary>
-        public static Task<IEnumerable<T>> GetListAsync<T>(this IDbConnection connection, object predicate = null, IList<ISort> sort = null, IDbTransaction transaction = null, int? commandTimeout = null, string hints = null) where T : class
+        public static Task<IEnumerable<T>> GetListAsync<T>(this IDbConnection connection, object predicate = null, IList<ISort> sort = null, IDbTransaction transaction = null, int? commandTimeout = null, string hints = null, long? top = null) where T : class
         {
-            return Instance.GetListAsync<T>(connection, predicate, sort, transaction, commandTimeout, hints);
+            return Instance.GetListAsync<T>(connection, predicate, sort, transaction, commandTimeout, hints, top);
         }
 
         /// <summary>
@@ -101,7 +101,7 @@ namespace DapperExtensions
         /// <summary>
         /// Executes a query using the specified predicate, returning an integer that represents the number of rows that match the query.
         /// </summary>
-        public static Task<int> CountAsync<T>(this IDbConnection connection, object predicate, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
+        public static Task<long> CountAsync<T>(this IDbConnection connection, object predicate, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
         {
             return Instance.CountAsync<T>(connection, predicate, transaction, commandTimeout);
         }

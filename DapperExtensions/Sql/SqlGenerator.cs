@@ -10,7 +10,7 @@ namespace DapperExtensions.Sql
     {
         IDapperExtensionsConfiguration Configuration { get; }
 
-        string Select(IClassMapper classMap, IPredicate predicate, IList<ISort> sort, IDictionary<string, object> parameters, string hints = null);
+        string Select(IClassMapper classMap, IPredicate predicate, IList<ISort> sort, IDictionary<string, object> parameters, string hints = null, long? top = null);
         string SelectPaged(IClassMapper classMap, IPredicate predicate, IList<ISort> sort, int page, int resultsPerPage, IDictionary<string, object> parameters);
         string SelectSet(IClassMapper classMap, IPredicate predicate, IList<ISort> sort, int firstResult, int maxResults, IDictionary<string, object> parameters);
         string Count(IClassMapper classMap, IPredicate predicate, IDictionary<string, object> parameters);
@@ -35,16 +35,18 @@ namespace DapperExtensions.Sql
 
         public IDapperExtensionsConfiguration Configuration { get; private set; }
 
-        public virtual string Select(IClassMapper classMap, IPredicate predicate, IList<ISort> sort, IDictionary<string, object> parameters, string hints = null)
+        public virtual string Select(IClassMapper classMap, IPredicate predicate, IList<ISort> sort, IDictionary<string, object> parameters, string hints = null, long? top = null)
         {
             if (parameters == null)
             {
                 throw new ArgumentNullException("Parameters");
             }
 
-            StringBuilder sql = new StringBuilder(string.Format("SELECT {0} FROM {1}",
+            StringBuilder sql = new StringBuilder(string.Format("SELECT {2}{0} FROM {1}",
                 BuildSelectColumns(classMap),
-                GetTableName(classMap)));
+                GetTableName(classMap),
+                top != null? "TOP (@_top)"  : null
+                ));
             if (!string.IsNullOrEmpty(hints))
                 sql.Append(" WITH (").Append(hints).Append(")");
             if (predicate != null)
@@ -52,6 +54,8 @@ namespace DapperExtensions.Sql
                 sql.Append(" WHERE ")
                     .Append(predicate.GetSql(this, parameters));
             }
+            if (top != null)
+                parameters.Add("_top", top);
 
             if (sort != null && sort.Any())
             {
@@ -218,7 +222,7 @@ namespace DapperExtensions.Sql
         public virtual string GetColumnName(IClassMapper map, IPropertyMap property, bool includeAlias/*, bool includeTablePrefix = true*/)
         {
             string alias = null;
-            if (property.ColumnName != property.Name && includeAlias)
+            if (property.ColumnName != property.Name && includeAlias && !(property.IsColumnMappedByDapper ?? map.AreColumnsMappedByDapper))
             {
                 alias = property.Name;
             }

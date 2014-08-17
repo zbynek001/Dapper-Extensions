@@ -16,6 +16,7 @@ namespace DapperExtensions
         ISqlDialect Dialect { get; }
         IClassMapper GetMap(Type entityType);
         IClassMapper GetMap<T>() where T : class;
+        void RegisterMap(IClassMapper map);
         void ClearCache();
         Guid GetNextGuid();
     }
@@ -40,6 +41,11 @@ namespace DapperExtensions
         public Type DefaultMapper { get; private set; }
         public IList<Assembly> MappingAssemblies { get; private set; }
         public ISqlDialect Dialect { get; private set; }
+
+        public void RegisterMap(IClassMapper map)
+        {
+            _classMaps[map.EntityType] = map;
+        }
 
         public IClassMapper GetMap(Type entityType)
         {

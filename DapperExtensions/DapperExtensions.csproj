@@ -50,6 +50,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Annotations\TableAttribute.cs" />
     <Compile Include="ChangeTracking.cs" />
     <Compile Include="ChangeTrackingCollection.cs" />
     <Compile Include="DapperExtensions.Async.cs" />

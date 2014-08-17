@@ -10,6 +10,31 @@ using DapperExtensions.Sql;
 
 namespace DapperExtensions
 {
+    //public static class Predicates<T> where T : class
+    //{
+    //    public static IFieldPredicate Field<TValue>(Expression<Func<T, TValue>> expression, Operator op, TValue value, bool not = false) where TValue: class
+    //    {
+    //        PropertyInfo propertyInfo = ReflectionHelper.GetProperty(expression) as PropertyInfo;
+    //        return new FieldPredicate<T> {
+    //            PropertyName = propertyInfo.Name,
+    //            Operator = op,
+    //            Value = value,
+    //            Not = not
+    //        };
+    //    }
+
+    //    public static IFieldPredicate Field<TValue>(Expression<Func<T, TValue>> expression, Operator op, TValue? value, bool not = false) where TValue : struct
+    //    {
+    //        PropertyInfo propertyInfo = ReflectionHelper.GetProperty(expression) as PropertyInfo;
+    //        return new FieldPredicate<T> {
+    //            PropertyName = propertyInfo.Name,
+    //            Operator = op,
+    //            Value = value,
+    //            Not = not
+    //        };
+    //    }
+    //}
+
     public static class Predicates
     {
         /// <summary>
@@ -22,7 +47,7 @@ namespace DapperExtensions
         /// <param name="value">The value for the predicate.</param>
         /// <param name="not">Effectively inverts the comparison operator. Example: WHERE FirstName &lt;&gt; 'Foo'.</param>
         /// <returns>An instance of IFieldPredicate.</returns>
-        public static IFieldPredicate Field<T>(Expression<Func<T, object>> expression, Operator op, object value, bool not = false) where T : class
+        public static IFieldPredicate Field<T>(Expression<Func<T, object>> expression, Operator op, object value, bool not = false, char? escape = null) where T : class
         {
             PropertyInfo propertyInfo = ReflectionHelper.GetProperty(expression) as PropertyInfo;
             return new FieldPredicate<T>
@@ -30,7 +55,8 @@ namespace DapperExtensions
                            PropertyName = propertyInfo.Name,
                            Operator = op,
                            Value = value,
-                           Not = not
+                           Not = not,
+                           Escape = escape
                        };
         }
 
@@ -161,6 +187,7 @@ namespace DapperExtensions
     {
         public Operator Operator { get; set; }
         public bool Not { get; set; }
+        public char? Escape { get; set; }
 
         public virtual string GetOperatorString()
         {
@@ -179,6 +206,13 @@ namespace DapperExtensions
                 default:
                     return Not ? "<>" : "=";
             }
+        }
+
+        public virtual string GetEscapeString()
+        {
+            if (Operator != Operator.Like || Escape == null)
+                return null;
+            return " ESCAPE '" + Escape.Value + "'";
         }
     }
 
@@ -219,7 +253,7 @@ namespace DapperExtensions
             }
 
             string parameterName = parameters.SetParameterName(this.PropertyName, this.Value, sqlGenerator.Configuration.Dialect.ParameterPrefix);
-            return string.Format("({0} {1} {2})", columnName, GetOperatorString(), parameterName);
+            return string.Format("({0} {1} {2}{3})", columnName, GetOperatorString(), parameterName, GetEscapeString());
         }
     }
 
@@ -333,6 +367,94 @@ namespace DapperExtensions
                     return s;
                 }
                                         ) + ")";
+        }
+
+        public static PredicateGroup And()
+        {
+            return new PredicateGroup { Operator = GroupOperator.And, Predicates = new List<IPredicate>() };
+        }
+
+        public static PredicateGroup Or()
+        {
+            return new PredicateGroup { Operator = GroupOperator.Or, Predicates = new List<IPredicate>() };
+        }
+
+        public void Add(IPredicate predicate)
+        {
+            Predicates.Add(predicate);
+        }
+    }
+
+    public class Predicate : IPredicate
+    {
+        private PredicateGroup predicateGroup;
+
+        private Predicate()
+        {
+        }
+
+        public Predicate(GroupOperator @operator)
+        {
+            predicateGroup = new PredicateGroup { Operator = @operator, Predicates = new List<IPredicate>() };
+        }
+
+        private void Add(IPredicate predicate)
+        {
+            predicateGroup.Predicates.Add(predicate);
+        }
+
+        private void Add(IPredicate[] predicates)
+        {
+            if (predicates == null)
+                return;
+            for (int i = 0; i < predicates.Length; i++) {
+                var p = predicates[i];
+                if (p == null)
+                    continue;
+                Add(p);
+
+            }
+        }
+
+        public static Predicate And(IPredicate predicate1, IPredicate predicate2, params IPredicate[] otherPredicates)
+        {
+            var pb = new Predicate(GroupOperator.And);
+            pb.Add(predicate1);
+            pb.Add(predicate2);
+            pb.Add(otherPredicates);
+            return pb;
+        }
+
+        public static Predicate Or(IPredicate predicate1, IPredicate predicate2, params IPredicate[] otherPredicates)
+        {
+            var pb = new Predicate(GroupOperator.Or);
+            pb.Add(predicate1);
+            pb.Add(predicate2);
+            pb.Add(otherPredicates);
+            return pb;
+        }
+
+        public Predicate And(IPredicate predicate, params IPredicate[] predicates)
+        {
+            var pb = new Predicate(GroupOperator.And);
+            pb.Add(predicateGroup);
+            pb.Add(predicate);
+            pb.Add(predicates);
+            return pb;
+        }
+
+        public Predicate Or(IPredicate predicate, params IPredicate[] predicates)
+        {
+            var pb = new Predicate(GroupOperator.Or);
+            pb.Add(predicateGroup);
+            pb.Add(predicate);
+            pb.Add(predicates);
+            return pb;
+        }
+
+        public string GetSql(ISqlGenerator sqlGenerator, IDictionary<string, object> parameters)
+        {
+            return predicateGroup.GetSql(sqlGenerator, parameters);
         }
     }
 

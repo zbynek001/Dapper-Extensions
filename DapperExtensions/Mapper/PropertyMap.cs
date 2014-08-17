@@ -12,6 +12,7 @@ namespace DapperExtensions.Mapper
     {
         string Name { get; }
         string ColumnName { get; }
+        bool? IsColumnMappedByDapper { get; }
         bool Ignored { get; }
         bool IsReadOnly { get; }
         bool IsInsertOnly { get; }
@@ -45,6 +46,7 @@ namespace DapperExtensions.Mapper
         /// Gets the column name for the current property.
         /// </summary>
         public string ColumnName { get; private set; }
+        public bool? IsColumnMappedByDapper { get; private set; }
 
         /// <summary>
         /// Gets the key type for the current property.
@@ -55,7 +57,7 @@ namespace DapperExtensions.Mapper
 
         public KeyType GetKeyType(string name)
         {
-            if (name == null)
+            if (string.IsNullOrEmpty(name))
                 return KeyType;
             KeyType r;
             if (keyTypes.TryGetValue(name, out r))
@@ -99,9 +101,10 @@ namespace DapperExtensions.Mapper
         /// Fluently sets the column name for the property.
         /// </summary>
         /// <param name="columnName">The column name as it exists in the database.</param>
-        public PropertyMap Column(string columnName)
+        public PropertyMap Column(string columnName, bool? columnMappedByDapper = null)
         {
             ColumnName = columnName;
+            IsColumnMappedByDapper = columnMappedByDapper;
             return this;
         }
 

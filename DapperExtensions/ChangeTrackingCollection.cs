@@ -22,11 +22,11 @@ namespace DapperExtensions
             this.changeTracking = changeTracking;
         }
 
-        public void Attach(T item, bool takeSnapshot = true)
+        public void Attach(T item, bool takeSnapshot = true, string keyName = null)
         {
             internalActivity = true;
             try {
-                changeTracking.Attach(item, takeSnapshot);
+                changeTracking.Attach(item, takeSnapshot, keyName);
                 this.Add(item);
             }
             finally {
@@ -34,12 +34,39 @@ namespace DapperExtensions
             }
         }
 
-        public void Attach(IEnumerable<T> entities, bool takeSnapshot = true)
+        public void Attach(IEnumerable<T> entities, bool takeSnapshot = true, string keyName = null)
         {
             if (entities == null)
                 return;
             foreach (var obj in entities)
-                Attach(obj, takeSnapshot);
+                Attach(obj, takeSnapshot, keyName);
+        }
+
+        public bool Remove(T entity, string keyName)
+        {
+            internalActivity = true;
+            try {
+                if (this.Remove(entity)) {
+                    changeTracking.Delete(entity, keyName);
+                    return true;
+                }
+            }
+            finally {
+                internalActivity = false;
+            }
+            return false;
+        }
+
+        public void RemoveAt(int index, string keyName)
+        {
+            internalActivity = true;
+            try {
+                var entity = this[index];
+                changeTracking.Delete(entity, keyName);
+            }
+            finally {
+                internalActivity = false;
+            }
         }
 
         protected override void InsertItem(int index, T item)
@@ -48,6 +75,9 @@ namespace DapperExtensions
                 changeTracking.AddNew(item);
             base.InsertItem(index, item);
         }
+
+        //, string keyName = null
+
 
         protected override void RemoveItem(int index)
         {

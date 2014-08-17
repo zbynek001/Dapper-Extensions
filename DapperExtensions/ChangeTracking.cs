@@ -50,18 +50,31 @@ namespace DapperExtensions
             public abstract object EntityRaw { get; }
 
             public long OperationId { get; private set; }
+            public int OperationTypeOrder
+            {
+                get
+                {
+                    if (IsDeleted)
+                        return 1;
+                    if (IsNew)
+                        return 2;
+                    return 3;
+                }
+            }
             public bool IsNew { get; protected set; }
             public bool IsDeleted { get; protected set; }
             public bool TakeSnapshot { get; protected set; }
             public abstract bool HasSnapshot { get; }
             public int TrackedRefCount { get; private set; }
+            public string KeyName { get; protected set; }
 
             private readonly ISequenceGenerator sequenceGenerator;
 
-            internal TrackedEntity(Type entityType, ISequenceGenerator sequenceGenerator)
+            internal TrackedEntity(Type entityType, ISequenceGenerator sequenceGenerator, string keyName)
             {
                 this.EntityType = entityType;
                 this.sequenceGenerator = sequenceGenerator;
+                this.KeyName = keyName;
             }
 
             protected void TrackedRefAdded()
@@ -81,12 +94,12 @@ namespace DapperExtensions
                 this.OperationId = sequenceGenerator.NextId();
             }
 
-            public abstract bool Delete();
+            public abstract bool Delete(string keyName = null);
             public abstract bool Reset();
             public abstract void ReAdd(bool isNew);
 
-            public abstract void SaveChanges(IDbConnection connection, IDbTransaction transaction = null, int? commandTimeout = null, string keyName = null);
-            public abstract Task SaveChangesAsync(IDbConnection connection, IDbTransaction transaction = null, int? commandTimeout = null, string keyName = null);
+            public abstract void SaveChanges(IDbConnection connection, IDbTransaction transaction = null, int? commandTimeout = null);
+            public abstract Task SaveChangesAsync(IDbConnection connection, IDbTransaction transaction = null, int? commandTimeout = null);
         }
 
         public class TrackedEntity<T> : TrackedEntity where T : class
@@ -104,8 +117,10 @@ namespace DapperExtensions
 
             public bool IsPartialUpdateEnabled { get; private set; }
 
-            public TrackedEntity(ChangeTracking owner, T entity, bool isNew, bool takeSnapshot)
-                : base(typeof(T), owner.SequenceGenerator)
+            private bool useKeyName;
+
+            public TrackedEntity(ChangeTracking owner, T entity, bool isNew, bool takeSnapshot, string keyName)
+                : base(typeof(T), owner.SequenceGenerator, keyName)
             {
                 this.owner = owner;
                 IClassMapper classMap = DapperExtensions.GetMap<T>();
@@ -120,10 +135,11 @@ namespace DapperExtensions
                 TrackedRefAdded();
             }
 
-            public override bool Delete()
+            public override bool Delete(string keyName = null)
             {
                 IsDeleted = true;
                 NewOperationId();
+                this.KeyName = keyName;
 
                 if (IsNew) {
                     TrackedRefRemoved();
@@ -143,7 +159,7 @@ namespace DapperExtensions
                 TrackedRefAdded();
             }
 
-            public override void SaveChanges(IDbConnection connection, IDbTransaction transaction = null, int? commandTimeout = null, string keyName = null)
+            public override void SaveChanges(IDbConnection connection, IDbTransaction transaction = null, int? commandTimeout = null)
             {
                 if (IsNew) {
                     if (IsDeleted)
@@ -151,12 +167,12 @@ namespace DapperExtensions
                     connection.Insert<T>(Entity, transaction: transaction, commandTimeout: commandTimeout);
                 }
                 else if (IsDeleted)
-                    connection.Delete<T>(Entity, transaction: transaction, commandTimeout: commandTimeout, keyName: keyName);
+                    connection.Delete<T>(Entity, transaction: transaction, commandTimeout: commandTimeout, keyName: KeyName);
                 else
-                    connection.Update<T>(Entity, transaction: transaction, commandTimeout: commandTimeout, keyName: keyName, snapshot: Snapshot);
+                    connection.Update<T>(Entity, transaction: transaction, commandTimeout: commandTimeout, keyName: KeyName, snapshot: Snapshot);
             }
 
-            public override async Task SaveChangesAsync(IDbConnection connection, IDbTransaction transaction = null, int? commandTimeout = null, string keyName = null)
+            public override async Task SaveChangesAsync(IDbConnection connection, IDbTransaction transaction = null, int? commandTimeout = null)
             {
                 if (IsNew) {
                     if (IsDeleted)
@@ -164,9 +180,9 @@ namespace DapperExtensions
                     await connection.InsertAsync<T>(Entity, transaction: transaction, commandTimeout: commandTimeout);
                 }
                 else if (IsDeleted)
-                    await connection.DeleteAsync<T>(Entity, transaction: transaction, commandTimeout: commandTimeout, keyName: keyName);
+                    await connection.DeleteAsync<T>(Entity, transaction: transaction, commandTimeout: commandTimeout, keyName: KeyName);
                 else
-                    await connection.UpdateAsync<T>(Entity, transaction: transaction, commandTimeout: commandTimeout, keyName: keyName, snapshot: Snapshot);
+                    await connection.UpdateAsync<T>(Entity, transaction: transaction, commandTimeout: commandTimeout, keyName: KeyName, snapshot: Snapshot);
             }
 
             public override bool Reset()
@@ -197,26 +213,50 @@ namespace DapperExtensions
 
         public TrackedEntity<T> Get<T>(T entity) where T : class
         {
+            if (entity == null)
+                return null;
             TrackedEntity t;
             if (trackedEntities.TryGetValue(entity, out t))
                 return t as TrackedEntity<T>;
             return null;
         }
 
-        public void Attach<T>(IEnumerable<T> entities, bool takeSnapshot = true) where T : class
+        public ChangeTrackingCollection<T> AttachCollection<T>(IEnumerable<T> entities, bool takeSnapshot = true) where T : class
+        {
+            var chtc = new ChangeTrackingCollection<T>(this);
+            if (entities != null) {
+                foreach (var obj in entities)
+                    chtc.Attach(obj, takeSnapshot);
+            }
+            return chtc;
+        }
+
+        public ChangeTrackingCollection<T> AddNewCollection<T>(IEnumerable<T> entities) where T : class
+        {
+            if (entities == null)
+                return null;
+            var chtc = new ChangeTrackingCollection<T>(this);
+            if (entities != null) {
+                foreach (var obj in entities)
+                    chtc.Add(obj);
+            }
+            return chtc;
+        }
+
+        public void AttachRange<T>(IEnumerable<T> entities, bool takeSnapshot = true, string keyName = null) where T : class
         {
             if (entities == null)
                 return;
             foreach (var obj in entities)
-                Add<T>(obj, false, takeSnapshot);
+                Add<T>(obj, false, takeSnapshot, keyName);
         }
 
-        public TrackedEntity<T> Attach<T>(T entity, bool takeSnapshot = true) where T : class
+        public TrackedEntity<T> Attach<T>(T entity, bool takeSnapshot = true, string keyName = null) where T : class
         {
-            return Add<T>(entity, false, takeSnapshot);
+            return Add<T>(entity, false, takeSnapshot, keyName);
         }
 
-        public void AddNew<T>(IEnumerable<T> entities) where T : class
+        public void AddNewRange<T>(IEnumerable<T> entities) where T : class
         {
             if (entities == null)
                 return;
@@ -229,19 +269,21 @@ namespace DapperExtensions
             return Add<T>(entity, true);
         }
 
-        public void Add<T>(IEnumerable<T> entities, bool isNew, bool takeSnapshot = true) where T : class
+        public void AddRange<T>(IEnumerable<T> entities, bool isNew, bool takeSnapshot = true, string keyName = null) where T : class
         {
             if (entities == null)
                 return;
             foreach (var obj in entities)
-                Add<T>(obj, isNew, takeSnapshot);
+                Add<T>(obj, isNew, takeSnapshot, keyName);
         }
 
-        public TrackedEntity<T> Add<T>(T entity, bool isNew, bool takeSnapshot = true) where T : class
+        public TrackedEntity<T> Add<T>(T entity, bool isNew, bool takeSnapshot = true, string keyName = null) where T : class
         {
+            if (entity == null)
+                return null;
             TrackedEntity<T> t = Get<T>(entity);
             if (t == null) {
-                t = new TrackedEntity<T>(this, entity, isNew, takeSnapshot);
+                t = new TrackedEntity<T>(this, entity, isNew, takeSnapshot, keyName);
                 trackedEntities.Add(entity, t);
             }
             else {
@@ -250,25 +292,29 @@ namespace DapperExtensions
             return t;
         }
 
-        public void Delete<T>(IEnumerable<T> entities) where T : class
+        public void DeleteRange<T>(IEnumerable<T> entities, string keyName = null) where T : class
         {
             if (entities == null)
                 return;
             foreach (var obj in entities)
-                Delete<T>(obj);
+                Delete<T>(obj, keyName);
         }
 
-        public void Delete<T>(T entity) where T : class
+        public void Delete<T>(T entity, string keyName = null) where T : class
         {
+            if (entity == null)
+                return;
             TrackedEntity<T> t = Get<T>(entity);
             if (t == null)
-                t = Add<T>(entity, false);
-            if (t.Delete())
+                t = Add<T>(entity, false, keyName: keyName);
+            if (t.Delete(keyName))
                 DetachTracked(t);
         }
 
         public void DeleteTracked(TrackedEntity tracked)
         {
+            if (tracked == null)
+                return;
             if (tracked.Delete())
                 DetachTracked(tracked);
         }
@@ -283,6 +329,8 @@ namespace DapperExtensions
 
         public bool Detach<T>(T entity) where T : class
         {
+            if (entity == null)
+                return true;
             var t = Get(entity);
             if (t != null)
                 return DetachTracked(t);
@@ -291,6 +339,8 @@ namespace DapperExtensions
 
         public bool DetachTracked(TrackedEntity tracked)
         {
+            if (tracked == null)
+                return true;
             return trackedEntities.Remove(tracked.EntityRaw);
         }
 
@@ -302,6 +352,8 @@ namespace DapperExtensions
 
         public void Reset<T>(T entity) where T : class
         {
+            if (entity == null)
+                return;
             var t = Get(entity);
             if (t != null)
                 ResetTracked(t);
@@ -310,6 +362,8 @@ namespace DapperExtensions
 
         public void ResetTracked(TrackedEntity tracked)
         {
+            if (tracked == null)
+                return;
             if (!tracked.Reset())
                 DetachTracked(tracked);
         }
@@ -319,35 +373,25 @@ namespace DapperExtensions
             trackedEntities.Clear();
         }
 
-        public void SaveChanges(IDbConnection connection, IDbTransaction transaction = null, int? commandTimeout = null, bool resetAfter = true, IDictionary<Type, string> keyNames = null)
+        public void SaveChanges(IDbConnection connection, IDbTransaction transaction = null, int? commandTimeout = null, bool resetAfter = true)
         {
-            var entities = trackedEntities.Values.OrderBy(i => i.OperationId).ToList();
+            var entities = trackedEntities.Values.OrderBy(i => i.OperationTypeOrder).ThenBy(i => i.OperationId).ToList();
 
             for (int i = 0; i < entities.Count; i++) {
                 var t = entities[i];
-
-                string keyName = null;
-                if (keyNames != null)
-                    keyNames.TryGetValue(t.EntityType, out keyName);
-
-                t.SaveChanges(connection, transaction: transaction, commandTimeout: commandTimeout, keyName: keyName);
+                t.SaveChanges(connection, transaction: transaction, commandTimeout: commandTimeout);
             }
             if (resetAfter)
                 Reset();
         }
 
-        public async Task SaveChangesAsync(IDbConnection connection, IDbTransaction transaction = null, int? commandTimeout = null, bool resetAfter = true, IDictionary<Type, string> keyNames = null)
+        public async Task SaveChangesAsync(IDbConnection connection, IDbTransaction transaction = null, int? commandTimeout = null, bool resetAfter = true)
         {
-            var entities = trackedEntities.Values.OrderBy(i => i.OperationId).ToList();
+            var entities = trackedEntities.Values.OrderBy(i => i.OperationTypeOrder).ThenBy(i => i.OperationId).ToList();
 
             for (int i = 0; i < entities.Count; i++) {
                 var t = entities[i];
-
-                string keyName = null;
-                if (keyNames != null)
-                    keyNames.TryGetValue(t.EntityType, out keyName);
-
-                await t.SaveChangesAsync(connection, transaction: transaction, commandTimeout: commandTimeout, keyName: keyName);
+                await t.SaveChangesAsync(connection, transaction: transaction, commandTimeout: commandTimeout);
             }
             if (resetAfter)
                 Reset();

@@ -17,6 +17,7 @@ namespace DapperExtensions.Mapper
         bool IsPartialUpdateDisabled { get; }
         string DefaultUpdateKeyName { get; }
         string DefaultDeleteKeyName { get; }
+        bool AreColumnsMappedByDapper { get; }
 
         bool OnInsert(object entity);
         bool OnUpdate(object entity);
@@ -57,6 +58,8 @@ namespace DapperExtensions.Mapper
 
         public string DefaultUpdateKeyName { get; protected set; }
         public string DefaultDeleteKeyName { get; protected set; }
+        public bool AreColumnsMappedByDapper { get; protected set; }
+        
 
         bool IClassMapper.OnInsert(object entity)
         {
@@ -118,6 +121,11 @@ namespace DapperExtensions.Mapper
             DefaultDeleteKeyName = keyName;
         }
 
+        public virtual void ColumnsMappedByDapper(bool columnsMappedByDapper)
+        {
+            AreColumnsMappedByDapper = columnsMappedByDapper;
+        }
+
         protected virtual void AutoMap()
         {
             AutoMap(null);
@@ -177,7 +185,11 @@ namespace DapperExtensions.Mapper
         /// </summary>
         protected PropertyMap Map(PropertyInfo propertyInfo)
         {
-            PropertyMap result = new PropertyMap(propertyInfo);
+            PropertyMap result = Properties.Where(p => p.PropertyInfo == propertyInfo).FirstOrDefault() as PropertyMap;
+            if (result != null)
+                return result;
+            result = new PropertyMap(propertyInfo);
+
             this.GuardForDuplicatePropertyMap(result);
             Properties.Add(result);
             return result;

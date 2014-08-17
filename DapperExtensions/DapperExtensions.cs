@@ -135,9 +135,9 @@ namespace DapperExtensions
         /// <summary>
         /// Executes a query for the specified id, returning the data typed as per T
         /// </summary>
-        public static T Get<T>(this IDbConnection connection, dynamic id, IDbTransaction transaction = null, int? commandTimeout = null, string keyName = null, string hints = null) where T : class
+        public static T Get<T>(this IDbConnection connection, object predicate, IDbTransaction transaction = null, int? commandTimeout = null, string keyName = null, string hints = null) where T : class
         {
-            var result = Instance.Get<T>(connection, id, transaction, commandTimeout, keyName, hints);
+            var result = Instance.Get<T>(connection, predicate, transaction, commandTimeout, keyName, hints);
             return (T)result;
         }
 
@@ -195,9 +195,9 @@ namespace DapperExtensions
         /// <summary>
         /// Executes a select query using the specified predicate, returning an IEnumerable data typed as per T.
         /// </summary>
-        public static IEnumerable<T> GetList<T>(this IDbConnection connection, object predicate = null, IList<ISort> sort = null, IDbTransaction transaction = null, int? commandTimeout = null, bool buffered = true, string hints = null) where T : class
+        public static IEnumerable<T> GetList<T>(this IDbConnection connection, object predicate = null, IList<ISort> sort = null, IDbTransaction transaction = null, int? commandTimeout = null, bool buffered = true, string hints = null, long? top = null) where T : class
         {
-            return Instance.GetList<T>(connection, predicate, sort, transaction, commandTimeout, buffered, hints);
+            return Instance.GetList<T>(connection, predicate, sort, transaction, commandTimeout, buffered, hints, top);
         }
 
         /// <summary>
@@ -221,7 +221,7 @@ namespace DapperExtensions
         /// <summary>
         /// Executes a query using the specified predicate, returning an integer that represents the number of rows that match the query.
         /// </summary>
-        public static int Count<T>(this IDbConnection connection, object predicate, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
+        public static long Count<T>(this IDbConnection connection, object predicate, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
         {
             return Instance.Count<T>(connection, predicate, transaction, commandTimeout);
         }
@@ -241,6 +241,11 @@ namespace DapperExtensions
         public static IClassMapper GetMap<T>() where T : class
         {
             return Instance.SqlGenerator.Configuration.GetMap<T>();
+        }
+
+        public static void RegisterMap(IClassMapper map)
+        {
+            Instance.SqlGenerator.Configuration.RegisterMap(map);
         }
 
         /// <summary>
