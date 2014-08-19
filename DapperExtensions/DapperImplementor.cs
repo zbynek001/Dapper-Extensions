@@ -142,7 +142,7 @@ namespace DapperExtensions
                 var upl = diff.ParameterNames.ToList<string>();
                 if (upl.Count == 0)
                     return true;
-                //properties = upl;
+                properties = upl;
             }
             
             bool updated = classMap.OnUpdate(entity);
