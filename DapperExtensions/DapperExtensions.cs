@@ -76,7 +76,7 @@ namespace DapperExtensions
         /// <summary>
         /// Gets the Dapper Extensions Implementation
         /// </summary>
-        private static IDapperImplementor Instance
+        public static IDapperImplementor Instance
         {
             get
             {

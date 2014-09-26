@@ -153,7 +153,7 @@ namespace DapperExtensions
             string sql = SqlGenerator.Update(classMap, predicate, parameters, keyName, properties);
             DynamicParameters dynamicParameters = new DynamicParameters();
 
-            var columns = classMap.Properties.Where(p => !(p.Ignored || p.IsReadOnly || p.IsInsertOnly || p.IsAnyKeyType(KeyType.Identity)) && (parameters == null || properties.Contains(p.Name)));
+            var columns = classMap.Properties.Where(p => !(p.Ignored || p.IsReadOnly || p.IsInsertOnly || p.IsAnyKeyType(KeyType.Identity)) && (properties == null || properties.Contains(p.Name)));
             if (diff != null) {
                 foreach (var property in diff.ParameterNames.Where(property => columns.Any(c => c.Name == property))) {
                     var val = ((SqlMapper.IParameterLookup)diff)[property];

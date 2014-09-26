@@ -31,6 +31,7 @@ namespace DapperExtensions
             }
 
             public abstract DynamicParameters Diff();
+            public abstract void Revert();
         }
 
         public class Snapshot<T> : Snapshot
@@ -38,6 +39,7 @@ namespace DapperExtensions
         {
             static Func<T, T> cloner;
             static Func<T, T, List<Change>> differ;
+            static Action<T, T> reverter;
             T memberWiseClone;
             T trackedObject;
 
@@ -52,11 +54,21 @@ namespace DapperExtensions
                 return Diff(memberWiseClone, trackedObject);
             }
 
+            public override void Revert()
+            {
+                Revert(trackedObject, memberWiseClone);
+            }
 
             private static T Clone(T myObject)
             {
                 cloner = cloner ?? GenerateCloner();
                 return cloner(myObject);
+            }
+
+            private static void Revert(T origObject, T cloneObject)
+            {
+                reverter = reverter ?? GenerateReverter();
+                reverter(origObject, cloneObject);
             }
 
             private static DynamicParameters Diff(T original, T current)
@@ -72,14 +84,14 @@ namespace DapperExtensions
             static List<PropertyInfo> RelevantProperties()
             {
                 var x = DapperExtensions.GetMap<T>();
-                return x.Properties.Where(p => 
+                return x.Properties.Where(p =>
                     !(p.Ignored || p.IsReadOnly || p.IsInsertOnly || p.IsAnyKeyType(KeyType.Identity)) &&
                     p.PropertyInfo.GetSetMethod() != null &&
                     p.PropertyInfo.GetGetMethod() != null &&
                         (p.PropertyInfo.PropertyType.IsValueType ||
                             p.PropertyInfo.PropertyType == typeof(string) ||
                             (p.PropertyInfo.PropertyType.IsGenericType && p.PropertyInfo.PropertyType.GetGenericTypeDefinition() == typeof(Nullable<>)))
-                        ).Select(i=>i.PropertyInfo).ToList();
+                        ).Select(i => i.PropertyInfo).ToList();
 
                 //return typeof(T).GetProperties(BindingFlags.Instance | BindingFlags.Public)
                 //    .Where(p =>
@@ -216,6 +228,24 @@ namespace DapperExtensions
 
                 return (Func<T, T>)myExec;
             }
+
+            private static Action<T, T> GenerateReverter()
+            {
+                Delegate myExec = null;
+                var dm = new DynamicMethod("DoRevert", null, new Type[] { typeof(T), typeof(T) }, true);
+
+                var il = dm.GetILGenerator();
+                foreach (var prop in RelevantProperties()) {
+                    il.Emit(OpCodes.Ldarg_0);
+                    il.Emit(OpCodes.Ldarg_1);
+                    il.Emit(OpCodes.Callvirt, prop.GetGetMethod());
+                    il.Emit(OpCodes.Callvirt, prop.GetSetMethod());
+                }
+                il.Emit(OpCodes.Ret);
+                myExec = dm.CreateDelegate(typeof(Action<T, T>));
+                return (Action<T, T>)myExec;
+            }
+
         }
     }
 }

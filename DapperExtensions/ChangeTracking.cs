@@ -96,6 +96,7 @@ namespace DapperExtensions
 
             public abstract bool Delete(string keyName = null);
             public abstract bool Reset();
+            public abstract bool Revert();
             public abstract void ReAdd(bool isNew);
 
             public abstract void SaveChanges(IDbConnection connection, IDbTransaction transaction = null, int? commandTimeout = null);
@@ -193,6 +194,14 @@ namespace DapperExtensions
                 Snapshot = null;
                 if (TakeSnapshot && IsPartialUpdateEnabled)
                     Snapshot = Snapshotter.Start(Entity);
+                return true;
+            }
+
+            public override bool Revert()
+            {
+                if (!HasSnapshot)
+                    return false;
+                Snapshot.Revert();
                 return true;
             }
         }
@@ -366,6 +375,21 @@ namespace DapperExtensions
                 return;
             if (!tracked.Reset())
                 DetachTracked(tracked);
+        }
+
+
+        public void Revert()
+        {
+            foreach (var t in trackedEntities.Values.ToList())
+                t.Revert();
+        }
+
+        public void Revert(object entity)
+        {
+            TrackedEntity ent = null;
+            if (trackedEntities.TryGetValue(entity, out ent)) {
+                ent.Revert();
+            }
         }
 
         public void Clear()

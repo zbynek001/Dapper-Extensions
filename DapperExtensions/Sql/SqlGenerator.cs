@@ -24,6 +24,8 @@ namespace DapperExtensions.Sql
         string GetColumnName(IClassMapper map, IPropertyMap property, bool includeAlias/*, bool includeTablePrefix = true*/);
         string GetColumnName(IClassMapper map, string propertyName, bool includeAlias/*, bool includeTablePrefix = true*/);
         bool SupportsMultipleStatements();
+
+        string BuildSelectColumns(IClassMapper classMap);
     }
 
     public class SqlGeneratorImpl : ISqlGenerator
@@ -174,7 +176,7 @@ namespace DapperExtensions.Sql
                 throw new ArgumentNullException("Parameters");
             }
 
-            var columns = classMap.Properties.Where(p => !(p.Ignored || p.IsReadOnly || p.IsInsertOnly || p.GetKeyType(keyName) != KeyType.NotAKey) && (parameters == null || properties.Contains(p.Name)));
+            var columns = classMap.Properties.Where(p => !(p.Ignored || p.IsReadOnly || p.IsInsertOnly || p.GetKeyType(keyName) != KeyType.NotAKey) && (properties == null || properties.Contains(p.Name)));
             if (!columns.Any())
             {
                 throw new ArgumentException("No columns were mapped.");
